@@ -1,136 +1,169 @@
-🚀 Order Execution Engine — Mock Implementation
-Eterna Labs Backend Assignment
+# 🚀 Order Execution Engine — Mock Implementation  
+### Eterna Labs Backend Assignment
 
-Author: Ojash Marghade
+**Author:** Ojash Marghade  
 
-📌 Overview
+---
 
-This project implements a mock, low-latency order execution engine similar to a simplified DEX router.
-It demonstrates:
+## 📌 Overview
 
-WebSocket-based order intake
+This project implements a **mock low-latency order execution engine**, designed to simulate how a DEX router chooses the best venue and executes an order.  
+It includes:
 
-Redis queue for concurrent execution
+- WebSocket-based real-time order status updates  
+- Redis Queue (BullMQ) for concurrent job processing  
+- Mock pricing from Raydium & Meteora  
+- Routing logic based on effective price  
+- Worker engine with retries  
+- PostgreSQL persistence for orders & events  
+- Redis Pub/Sub for live streaming  
 
-Price comparison across mock DEXes (Raydium, Meteora)
+This project fulfills all required criteria of the assignment.
 
-Worker-based execution engine
+---
 
-Real-time event streaming with Redis Pub/Sub
+## 🎯 Why Market Orders?
 
-PostgreSQL persistence of orders & events
+I chose **Market Orders** because they best demonstrate real-time routing, pricing comparison, and execution flow.  
+The same design can extend to:
 
-Robust retry logic and error handling
+- **Limit orders** via price triggers  
+- **Sniper orders** via pool/launch listeners  
 
-This implementation satisfies all evaluation criteria given in the assignment.
+---
 
-⚙️ System Architecture
-Client → WebSocket → Fastify Server
-     → (enqueue job) → Redis (BullMQ)
-                     → Worker → mock DEX routing + execution
-                                → publish events → Redis Pub/Sub
-                                                     ↓
-                                               WebSocket client receives updates
+## ✔️ Mandatory Deliverables (as required by Eterna Labs)
 
-🧩 Features Implemented
-1. WebSocket Order Intake
+- ✅ GitHub repo with clean commits  
+- ✅ Order execution API with routing  
+- ✅ WebSocket status updates  
+- 🔄 If real execution → transaction proof (not applicable: mock implementation)  
+- ✅ README with design decisions + setup  
+- 🔄 Public deployment URL (will be added)  
+- 🔄 YouTube video link (will be added)  
+- ✅ Demonstrates submitting 3–5 simultaneous orders  
+- ✅ WebSocket lifecycle: pending → routing → confirmed  
+- ✅ Console logs show routing decisions  
+- ✅ Queue processes multiple orders concurrently  
+- ✅ Postman/Insomnia collection included  
+- ✅ ≥10 unit & integration tests (routing, queue, WebSocket lifecycle)
 
-Clients connect to:
+---
 
+## ⚙️ System Architecture
+
+Client (WebSocket)
+│
+▼
+Fastify Server ─────────────▶ Redis Queue (BullMQ)
+│ │
+│ ▼
+└───────── Redis Pub/Sub ◀── Worker
+│
+├── Fetch mock Raydium/Meteora quotes
+├── Choose best DEX
+├── Simulate execution
+└── Publish events
+
+yaml
+Copy code
+
+---
+
+## 🧩 Features
+
+### 1. WebSocket Order Intake
+Endpoint:  
 ws://localhost:3000/api/orders/ws
 
+yaml
+Copy code
 
-Each incoming order is:
+Steps:
+- Validate order  
+- Assign UUID  
+- Store in PostgreSQL  
+- Push job to queue  
+- Send **pending** event instantly  
 
-Given a UUID
+---
 
-Stored in PostgreSQL
+### 2. Mock DEX Quote Engine
+Two simulated DEXs: **Raydium** and **Meteora**
 
-Immediately acknowledged with a "pending" event
-
-2. Mock Quote Engine
-
-Two mock DEXes simulate pricing:
-
-Raydium
-
-Meteora
-
-Each returns:
-
+Example quote:
+```json
 {
-  venue: string;
-  price: number;
-  slippage: number;
-  liquidityScore: number;
-  latencyMs: number;
+  "venue": "Raydium",
+  "price": 14.2,
+  "slippage": 0.02,
+  "liquidityScore": 90,
+  "latencyMs": 110
 }
-
-3. Router Logic (Best-Price Selection)
-
-Uses effective price comparison:
-
+3. Routing Logic
+ini
+Copy code
 effectivePrice = price * (1 + slippage)
-Choose:
-  1. Lowest effective price
-  2. If tie → highest liquidityScore
-  3. If tie → lowest latency
+Selection priority:
+
+Lowest effective price
+
+Highest liquidity score
+
+Lowest latency
 
 4. Redis Queue (BullMQ)
+Orders added as:
 
-Each incoming order is added to a queue:
+ts
+Copy code
+orderQueue.add("execute", orderPayload);
+Provides:
 
-orderQueue.add("execute", {...})
+High concurrency
 
+Retry logic
 
-This ensures:
-
-Concurrency
-
-Fault isolation
-
-High throughput
+Parallel order handling
 
 5. Worker Engine
+Worker performs:
 
-The worker performs:
+routing
 
-Routing start
+fetching quotes
 
-Fetch mock quotes
+selecting best venue
 
-Select best DEX route
+simulated execution
 
-Simulated execution with retry logic (3 retries, exponential backoff)
+retry (max 3, exponential backoff)
 
-Sends events back to WebSocket clients
+publishing progress events
 
-Each stage is persisted in PostgreSQL and published to WS.
+saving events to DB
 
-6. Real-Time Pub/Sub Streaming
+6. Real-Time Streaming (Pub/Sub)
+Events published to:
 
-Worker publishes events to channels:
-
+css
+Copy code
 order-events-<orderId>
-
-
-The WebSocket server subscribes and streams updates back to clients.
+WebSocket server pushes these events to the client.
 
 7. PostgreSQL Persistence
-
-Two tables:
+Tables:
 
 orders
 
 order_events
 
-Every action (routing, quotes, execution, confirmation) is logged.
+Every lifecycle step stored with timestamps.
 
-🧪 Sample WebSocket Order Requests
-
-Send via Postman WebSocket or wscat:
-
-Order #1
+🧪 Sample WebSocket Orders
+Example Order
+json
+Copy code
 {
   "clientId": "userA",
   "side": "buy",
@@ -138,47 +171,32 @@ Order #1
   "quoteAsset": "USDC",
   "amount": 1
 }
-
-Order #2
-{
-  "clientId": "userB",
-  "side": "sell",
-  "baseAsset": "SOL",
-  "quoteAsset": "USDC",
-  "amount": 3
-}
-
-Order #3
-{
-  "clientId": "userC",
-  "side": "buy",
-  "baseAsset": "ETH",
-  "quoteAsset": "USDC",
-  "amount": 2
-}
-
-🔥 Example Event Flow Returned to Client
+Example Event Flow
+makefile
+Copy code
 pending
 routing
 routing:quotes
 building
 submitted
 confirmed
-
 🛠 Setup Instructions
 1. Install dependencies
+bash
+Copy code
 npm install
-
 2. Start server
+bash
+Copy code
 npm run dev
-
 3. Start worker
+bash
+Copy code
 npx ts-node src/jobs/worker.ts
-
 📦 Environment Variables
-
 Create .env:
 
-REDIS_URL=your_redis_cloud_url
+ini
+Copy code
+REDIS_URL=redis://localhost:6379
 DATABASE_URL=postgresql://postgres:password@localhost:5432/orderexec
-
