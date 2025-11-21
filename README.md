@@ -34,62 +34,64 @@ The same design can extend to:
 
 ## ✔️ Mandatory Deliverables (as required by Eterna Labs)
 
-- ✅ GitHub repo with clean commits  
+- ✅ Clean GitHub repo  
 - ✅ Order execution API with routing  
 - ✅ WebSocket status updates  
-- 🔄 If real execution → transaction proof (not applicable: mock implementation)  
+- 🔄 If real execution → transaction proof (mock used here)  
 - ✅ README with design decisions + setup  
-- 🔄 Public deployment URL (will be added)  
-- 🔄 YouTube video link (will be added)  
-- ✅ Demonstrates submitting 3–5 simultaneous orders  
-- ✅ WebSocket lifecycle: pending → routing → confirmed  
-- ✅ Console logs show routing decisions  
-- ✅ Queue processes multiple orders concurrently  
-- ✅ Postman/Insomnia collection included  
-- ✅ ≥10 unit & integration tests (routing, queue, WebSocket lifecycle)
+- 🔄 Deployed public URL (to be added)  
+- 🔄 YouTube video link (to be added)  
+- ✅ 3–5 simultaneous test orders  
+- ✅ WebSocket lifecycle updates  
+- ✅ Logging of routing decisions  
+- ✅ Queue-based concurrency  
+- ✅ Postman/Insomnia collection  
+- ✅ ≥10 unit/integration tests  
 
 ---
 
 ## ⚙️ System Architecture
 
+```
 Client (WebSocket)
-│
-▼
-Fastify Server ─────────────▶ Redis Queue (BullMQ)
-│ │
-│ ▼
-└───────── Redis Pub/Sub ◀── Worker
-│
-├── Fetch mock Raydium/Meteora quotes
-├── Choose best DEX
-├── Simulate execution
-└── Publish events
-
-yaml
-Copy code
+        │
+        ▼
+ Fastify Server ─────────────▶ Redis Queue (BullMQ)
+        │                           │
+        │                           ▼
+        └───────── Redis Pub/Sub ◀── Worker
+                                     │
+                                     ├── Fetch mock Raydium/Meteora quotes
+                                     ├── Choose best DEX
+                                     ├── Simulate execution
+                                     └── Publish events
+```
 
 ---
 
 ## 🧩 Features
 
 ### 1. WebSocket Order Intake
-Endpoint:  
+
+WebSocket endpoint:  
+```
 ws://localhost:3000/api/orders/ws
+```
 
-yaml
-Copy code
-
-Steps:
-- Validate order  
+Incoming order flow:
+- Validate request  
 - Assign UUID  
-- Store in PostgreSQL  
-- Push job to queue  
-- Send **pending** event instantly  
+- Insert into PostgreSQL  
+- Add job to queue  
+- Push `pending` event to user  
 
 ---
 
 ### 2. Mock DEX Quote Engine
-Two simulated DEXs: **Raydium** and **Meteora**
+
+DEXs simulated:
+- Raydium  
+- Meteora  
 
 Example quote:
 ```json
@@ -100,70 +102,76 @@ Example quote:
   "liquidityScore": 90,
   "latencyMs": 110
 }
-3. Routing Logic
-ini
-Copy code
+```
+
+---
+
+### 3. Routing Logic
+
+Effective price formula:
+```
 effectivePrice = price * (1 + slippage)
+```
+
 Selection priority:
+1. Lowest effective price  
+2. Highest liquidity score  
+3. Lowest latency  
 
-Lowest effective price
+---
 
-Highest liquidity score
+### 4. Redis Queue (BullMQ)
 
-Lowest latency
-
-4. Redis Queue (BullMQ)
-Orders added as:
-
-ts
-Copy code
+Orders added using:
+```ts
 orderQueue.add("execute", orderPayload);
-Provides:
+```
 
-High concurrency
+Benefits:
+- High concurrency  
+- Retry logic  
+- Isolated failures  
 
-Retry logic
+---
 
-Parallel order handling
+### 5. Worker Engine
 
-5. Worker Engine
-Worker performs:
+Worker tasks:
+- Start routing  
+- Fetch mock quotes  
+- Select best route  
+- Simulate transaction building  
+- Retry up to 3 times  
+- Push WebSocket events  
+- Save events in DB  
 
-routing
+---
 
-fetching quotes
+### 6. Real-Time Streaming
 
-selecting best venue
-
-simulated execution
-
-retry (max 3, exponential backoff)
-
-publishing progress events
-
-saving events to DB
-
-6. Real-Time Streaming (Pub/Sub)
-Events published to:
-
-css
-Copy code
+Worker publishes to:
+```
 order-events-<orderId>
-WebSocket server pushes these events to the client.
+```
 
-7. PostgreSQL Persistence
+WebSocket server streams these to connected clients.
+
+---
+
+### 7. PostgreSQL Persistence
+
 Tables:
+- `orders`  
+- `order_events`  
 
-orders
+Every lifecycle phase is saved.
 
-order_events
+---
 
-Every lifecycle step stored with timestamps.
+## 🧪 Sample WebSocket Orders
 
-🧪 Sample WebSocket Orders
-Example Order
-json
-Copy code
+Example request:
+```json
 {
   "clientId": "userA",
   "side": "buy",
@@ -171,32 +179,75 @@ Copy code
   "quoteAsset": "USDC",
   "amount": 1
 }
-Example Event Flow
-makefile
-Copy code
+```
+
+---
+
+## 🔥 Example WebSocket Event Flow
+
+```
 pending
 routing
 routing:quotes
 building
 submitted
 confirmed
-🛠 Setup Instructions
-1. Install dependencies
-bash
-Copy code
-npm install
-2. Start server
-bash
-Copy code
-npm run dev
-3. Start worker
-bash
-Copy code
-npx ts-node src/jobs/worker.ts
-📦 Environment Variables
-Create .env:
+```
 
-ini
-Copy code
+---
+
+## 🛠 Setup Instructions
+
+### 1. Install dependencies
+```bash
+npm install
+```
+
+### 2. Start backend server
+```bash
+npm run dev
+```
+
+### 3. Start worker process
+```bash
+npx ts-node src/jobs/worker.ts
+```
+
+---
+
+## 📦 Environment Variables
+
+Create `.env`:
+
+```
 REDIS_URL=redis://localhost:6379
 DATABASE_URL=postgresql://postgres:password@localhost:5432/orderexec
+```
+
+---
+
+## 📚 Future Extensions
+
+- Real Raydium/Meteora devnet execution  
+- Slippage protection  
+- Wrapped SOL (WSOL) handling  
+- Distributed workers  
+- Kafka-based queue  
+
+---
+
+## 📎 Deliverables Checklist
+
+- [x] Clean repo  
+- [x] Market order engine  
+- [x] Routing logic  
+- [x] WebSocket lifecycle  
+- [x] Redis queue concurrency  
+- [x] Retry strategy  
+- [x] Logging  
+- [x] Postman collection  
+- [x] Tests  
+- [ ] Deployment link  
+- [ ] YouTube demo link  
+
+---
