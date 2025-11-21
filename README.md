@@ -226,28 +226,3 @@ DATABASE_URL=postgresql://postgres:password@localhost:5432/orderexec
 
 ---
 
-## 📚 Future Extensions
-
-- Real Raydium/Meteora devnet execution  
-- Slippage protection  
-- Wrapped SOL (WSOL) handling  
-- Distributed workers  
-- Kafka-based queue  
-
----
-
-## 📎 Deliverables Checklist
-
-- [x] Clean repo  
-- [x] Market order engine  
-- [x] Routing logic  
-- [x] WebSocket lifecycle  
-- [x] Redis queue concurrency  
-- [x] Retry strategy  
-- [x] Logging  
-- [x] Postman collection  
-- [x] Tests  
-- [ ] Deployment link  
-- [ ] YouTube demo link  
-
----
