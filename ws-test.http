@@ -1,0 +1,4 @@
+### Order Test 1
+WEBSOCKET ws://localhost:3000/api/orders/ws
+
+{"clientId":"user1","side":"buy","baseAsset":"SOL","quoteAsset":"USDC","amount":2}
